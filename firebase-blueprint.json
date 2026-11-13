@@ -1,0 +1,159 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Perfil do estudante ou professor no Meu Campus ALEPA",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "displayName": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "role": { "type": "string", "enum": ["student", "teacher"] },
+        "dailyGoalMinutes": { "type": "integer" },
+        "examDate": { "type": "string", "maxLength": 20 },
+        "targetCargo": { "type": "string", "maxLength": 120 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "displayName", "role", "dailyGoalMinutes", "examDate", "targetCargo", "createdAt", "updatedAt"]
+    },
+    "TopicProgress": {
+      "title": "TopicProgress",
+      "description": "Progresso por tópico do edital Cargo 03 PL.AL.102",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "topicId": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "disciplineId": { "type": "string", "maxLength": 80 },
+        "theoryDone": { "type": "boolean" },
+        "questionsDone": { "type": "boolean" },
+        "revisionDone": { "type": "boolean" },
+        "masteryLevel": { "type": "integer" },
+        "notes": { "type": "string", "maxLength": 2000 },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "topicId", "disciplineId", "theoryDone", "questionsDone", "revisionDone", "masteryLevel", "updatedAt"]
+    },
+    "StudySession": {
+      "title": "StudySession",
+      "description": "Registro de sessão diária do cronograma de 2 horas",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "dateKey": { "type": "string", "maxLength": 20 },
+        "disciplineId": { "type": "string", "maxLength": 80 },
+        "topicTitle": { "type": "string", "maxLength": 200 },
+        "blockType": { "type": "string", "enum": ["theory", "questions", "correction", "revision"] },
+        "durationMinutes": { "type": "integer" },
+        "notes": { "type": "string", "maxLength": 1000 },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "dateKey", "disciplineId", "topicTitle", "blockType", "durationMinutes", "createdAt"]
+    },
+    "SimuladoAttempt": {
+      "title": "SimuladoAttempt",
+      "description": "Histórico de simulados e treinos cronometrados CETAP",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "title": { "type": "string", "maxLength": 160 },
+        "mode": { "type": "string", "enum": ["treino", "simulado"] },
+        "primaryDisciplineId": { "type": "string", "maxLength": 80 },
+        "totalQuestions": { "type": "integer" },
+        "correctCount": { "type": "integer" },
+        "score": { "type": "number" },
+        "durationSeconds": { "type": "integer" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "title", "mode", "primaryDisciplineId", "totalQuestions", "correctCount", "score", "durationSeconds", "createdAt"]
+    },
+    "ErrorEntry": {
+      "title": "ErrorEntry",
+      "description": "Entrada do Caderno de Erros e Banco de Melhoria",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "questionId": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "disciplineId": { "type": "string", "maxLength": 80 },
+        "topicTitle": { "type": "string", "maxLength": 200 },
+        "questionStem": { "type": "string", "maxLength": 2000 },
+        "correctOption": { "type": "string", "maxLength": 500 },
+        "selectedOption": { "type": "string", "maxLength": 500 },
+        "errorReason": { "type": "string", "enum": ["atencao", "teoria", "lei_seca", "banca_cetap"] },
+        "improvementNote": { "type": "string", "maxLength": 2000 },
+        "nextReviewDate": { "type": "string", "maxLength": 20 },
+        "reviewCount": { "type": "integer" },
+        "status": { "type": "string", "enum": ["pending", "mastered"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "questionId", "disciplineId", "topicTitle", "questionStem", "correctOption", "selectedOption", "errorReason", "improvementNote", "nextReviewDate", "reviewCount", "status", "createdAt", "updatedAt"]
+    },
+    "StudyMaterial": {
+      "title": "StudyMaterial",
+      "description": "Links e referências de PDF, PowerPoint, Excel, Drive e Videoaulas",
+      "type": "object",
+      "properties": {
+        "ownerId": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "title": { "type": "string", "minLength": 1, "maxLength": 200 },
+        "disciplineId": { "type": "string", "maxLength": 80 },
+        "fileType": { "type": "string", "enum": ["pdf", "pptx", "xlsx", "drive", "video"] },
+        "url": { "type": "string", "maxLength": 2000 },
+        "fileName": { "type": "string", "maxLength": 240 },
+        "description": { "type": "string", "maxLength": 1000 },
+        "isShared": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["ownerId", "title", "disciplineId", "fileType", "url", "isShared", "createdAt", "updatedAt"]
+    },
+    "SharedQuestion": {
+      "title": "SharedQuestion",
+      "description": "Questão cadastrada para o banco compartilhado ou pessoal",
+      "type": "object",
+      "properties": {
+        "authorId": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "disciplineId": { "type": "string", "maxLength": 80 },
+        "topicTitle": { "type": "string", "maxLength": 200 },
+        "statement": { "type": "string", "minLength": 5, "maxLength": 2500 },
+        "options": { "type": "array" },
+        "correctIndex": { "type": "integer" },
+        "explanation": { "type": "string", "maxLength": 2000 },
+        "legalBasis": { "type": "string", "maxLength": 400 },
+        "source": { "type": "string", "maxLength": 160 },
+        "isPublished": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["authorId", "disciplineId", "topicTitle", "statement", "options", "correctIndex", "explanation", "isPublished", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "Perfis individuais dos usuários autenticados"
+    },
+    "/users/{userId}/topicProgress/{topicId}": {
+      "schema": { "$ref": "#/entities/TopicProgress" },
+      "description": "Checklist e domínio por tópico do edital por usuário"
+    },
+    "/users/{userId}/studySessions/{sessionId}": {
+      "schema": { "$ref": "#/entities/StudySession" },
+      "description": "Histórico de sessões diárias de estudo"
+    },
+    "/users/{userId}/simuladoAttempts/{attemptId}": {
+      "schema": { "$ref": "#/entities/SimuladoAttempt" },
+      "description": "Histórico de simulados e treinos por usuário"
+    },
+    "/users/{userId}/errorNotebook/{entryId}": {
+      "schema": { "$ref": "#/entities/ErrorEntry" },
+      "description": "Caderno de erros e revisões programadas"
+    },
+    "/materials/{materialId}": {
+      "schema": { "$ref": "#/entities/StudyMaterial" },
+      "description": "Biblioteca de materiais (PDF, PowerPoint, Excel, Drive e Videoaulas)"
+    },
+    "/sharedQuestions/{questionId}": {
+      "schema": { "$ref": "#/entities/SharedQuestion" },
+      "description": "Questões cadastradas por professores ou estudantes"
+    }
+  }
+}
