@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { CheckCircle2, RefreshCw, Trash2 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { isMedioDisciplineId } from '../data/alepaMedioSyllabus';
 import { getDisciplineShortName } from '../data/alepaSyllabus';
-import { ErrorReason } from '../types';
+import { CampusLevel, ErrorReason } from '../types';
 
 const REASON_LABELS: Record<ErrorReason, string> = {
   atencao: 'Falta de atenção',
@@ -17,18 +18,23 @@ function addDaysIso(days: number): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-export function ErrorNotebookView() {
+export function ErrorNotebookView({ campus }: { campus: CampusLevel }) {
   const { errorNotebook, updateErrorEntry, deleteErrorEntry } = useAuth();
   const [filterStatus, setFilterStatus] = useState<'pending' | 'mastered' | 'all'>('pending');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [noteText, setNoteText] = useState('');
   const [reasonDraft, setReasonDraft] = useState<ErrorReason>('teoria');
 
-  const filtered =
-    filterStatus === 'all' ? errorNotebook : errorNotebook.filter((e) => e.status === filterStatus);
+  const isMedio = campus === 'medio';
+  const campusErrors = errorNotebook.filter((e) =>
+    isMedio ? isMedioDisciplineId(e.disciplineId) : !isMedioDisciplineId(e.disciplineId)
+  );
 
-  const pendingCount = errorNotebook.filter((e) => e.status === 'pending').length;
-  const masteredCount = errorNotebook.filter((e) => e.status === 'mastered').length;
+  const filtered =
+    filterStatus === 'all' ? campusErrors : campusErrors.filter((e) => e.status === filterStatus);
+
+  const pendingCount = campusErrors.filter((e) => e.status === 'pending').length;
+  const masteredCount = campusErrors.filter((e) => e.status === 'mastered').length;
 
   const handleMarkReviewed = async (id: string, currentCount: number, markMastered: boolean) => {
     await updateErrorEntry(id, {
@@ -67,7 +73,7 @@ export function ErrorNotebookView() {
           [
             { id: 'pending', label: `Pendentes (${pendingCount})` },
             { id: 'mastered', label: `Dominadas (${masteredCount})` },
-            { id: 'all', label: `Todas (${errorNotebook.length})` },
+            { id: 'all', label: `Todas (${campusErrors.length})` },
           ] as const
         ).map((tab) => (
           <button

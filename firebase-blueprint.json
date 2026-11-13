@@ -90,14 +90,23 @@
     },
     "StudyMaterial": {
       "title": "StudyMaterial",
-      "description": "Links e referências de PDF, PowerPoint, Excel, Drive e Videoaulas",
+      "description": "Materiais catalogados da biblioteca digital (PDF, Livro Digital, Vídeo, Podcast, Legislação, Curso, Questões e Simulado)",
       "type": "object",
       "properties": {
         "ownerId": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
         "title": { "type": "string", "minLength": 1, "maxLength": 200 },
         "disciplineId": { "type": "string", "maxLength": 80 },
+        "libraryCategoryId": { "type": "string", "maxLength": 80 },
+        "editalTopic": { "type": "string", "maxLength": 240 },
+        "resourceType": { "type": "string", "enum": ["pdf", "livro_digital", "video", "podcast", "legislacao", "curso", "questoes", "simulado"] },
         "fileType": { "type": "string", "enum": ["pdf", "pptx", "xlsx", "drive", "video"] },
+        "institution": { "type": "string", "maxLength": 160 },
         "url": { "type": "string", "maxLength": 2000 },
+        "pricing": { "type": "string", "enum": ["gratuito", "pago"] },
+        "publishedAt": { "type": "string", "maxLength": 20 },
+        "lastVerifiedAt": { "type": "string", "maxLength": 20 },
+        "linkStatus": { "type": "string", "enum": ["ativo", "instavel", "atualizacao"] },
+        "isOfficialContent": { "type": "boolean" },
         "fileName": { "type": "string", "maxLength": 240 },
         "description": { "type": "string", "maxLength": 1000 },
         "isShared": { "type": "boolean" },
@@ -108,7 +117,7 @@
     },
     "SharedQuestion": {
       "title": "SharedQuestion",
-      "description": "Questão cadastrada para o banco compartilhado ou pessoal",
+      "description": "Questão cadastrada separando fontes oficiais e treinamento complementar",
       "type": "object",
       "properties": {
         "authorId": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
@@ -120,10 +129,24 @@
         "explanation": { "type": "string", "maxLength": 2000 },
         "legalBasis": { "type": "string", "maxLength": 400 },
         "source": { "type": "string", "maxLength": 160 },
+        "originType": { "type": "string", "enum": ["official_cetap", "official_camara", "official_alepa", "training_platform"] },
+        "isOfficial": { "type": "boolean" },
         "isPublished": { "type": "boolean" },
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["authorId", "disciplineId", "topicTitle", "statement", "options", "correctIndex", "explanation", "isPublished", "createdAt"]
+    },
+    "DisciplineWeeklyGoal": {
+      "title": "DisciplineWeeklyGoal",
+      "description": "Meta semanal de minutos de estudo definida pelo usuário por disciplina",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "disciplineId": { "type": "string", "minLength": 1, "maxLength": 80, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "weeklyGoalMinutes": { "type": "integer" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "disciplineId", "weeklyGoalMinutes", "updatedAt"]
     }
   },
   "firestore": {
@@ -147,13 +170,17 @@
       "schema": { "$ref": "#/entities/ErrorEntry" },
       "description": "Caderno de erros e revisões programadas"
     },
+    "/users/{userId}/disciplineGoals/{disciplineId}": {
+      "schema": { "$ref": "#/entities/DisciplineWeeklyGoal" },
+      "description": "Metas semanais de minutos de estudo por disciplina por usuário"
+    },
     "/materials/{materialId}": {
       "schema": { "$ref": "#/entities/StudyMaterial" },
-      "description": "Biblioteca de materiais (PDF, PowerPoint, Excel, Drive e Videoaulas)"
+      "description": "Biblioteca digital estruturada (10 categorias e 8 tipos de recursos)"
     },
     "/sharedQuestions/{questionId}": {
       "schema": { "$ref": "#/entities/SharedQuestion" },
-      "description": "Questões cadastradas por professores ou estudantes"
+      "description": "Questões oficiais e de treinamento complementar cadastradas"
     }
   }
 }

@@ -6,6 +6,8 @@ export interface StudyAlertSettings {
   reminderTime: string; // HH:MM
   soundEnabled: boolean;
   lastTriggeredDateKey: string | null;
+  reminderEmail: string;
+  whatsappNumber: string;
 }
 
 const STORAGE_KEY = 'meu_campus_alepa_study_alert_v1';
@@ -15,6 +17,8 @@ const DEFAULT_SETTINGS: StudyAlertSettings = {
   reminderTime: '19:00',
   soundEnabled: true,
   lastTriggeredDateKey: null,
+  reminderEmail: '',
+  whatsappNumber: '',
 };
 
 function loadSettings(): StudyAlertSettings {
@@ -96,7 +100,7 @@ export function useStudyAlert(minutesToday: number, dailyGoal: number) {
       }
       if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
         try {
-          new Notification('Meu Campus – ALEPA · Lembrete de Estudo', {
+          new Notification('Concurso ALEPA 2026 · Lembrete de Estudo', {
             body,
           });
         } catch {

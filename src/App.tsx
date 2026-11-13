@@ -7,6 +7,7 @@ import {
   CalendarDays,
   CheckSquare,
   FileText,
+  Headphones,
   Home,
   LogOut,
   RefreshCw,
@@ -19,10 +20,11 @@ import { ScheduleView } from './components/ScheduleView';
 import { SimuladosView } from './components/SimuladosView';
 import { ErrorNotebookView } from './components/ErrorNotebookView';
 import { MaterialsView } from './components/MaterialsView';
+import { PodcastsView } from './components/PodcastsView';
 import { PerformanceView } from './components/PerformanceView';
 import { CONCURSO_PROFILE, formatDateKey } from './data/alepaSyllabus';
 import { useStudyAlert } from './hooks/useStudyAlert';
-import { NavSection } from './types';
+import { CampusLevel, MedioCargoGroup, NavSection } from './types';
 
 function CampusShell() {
   const {
@@ -38,8 +40,44 @@ function CampusShell() {
   } = useAuth();
 
   const [activeTab, setActiveTab] = useState<NavSection>('dashboard');
+  const [selectedCampus, setSelectedCampus] = useState<CampusLevel>(() => {
+    try {
+      const saved = localStorage.getItem('concurso_alepa_campus');
+      return saved === 'medio' || saved === 'superior' ? saved : 'superior';
+    } catch {
+      return 'superior';
+    }
+  });
+  const [selectedMedioCargo, setSelectedMedioCargo] = useState<MedioCargoGroup>(() => {
+    try {
+      const saved = localStorage.getItem('concurso_alepa_medio_cargo');
+      return saved === 'cargo_01_04' || saved === 'cargo_02' || saved === 'cargo_03'
+        ? saved
+        : 'cargo_01_04';
+    } catch {
+      return 'cargo_01_04';
+    }
+  });
   const [timerPreset, setTimerPreset] = useState<{ disciplineId?: string; topicTitle?: string }>({});
   const [verificationSent, setVerificationSent] = useState(false);
+
+  const handleChangeCampus = (campus: CampusLevel) => {
+    setSelectedCampus(campus);
+    try {
+      localStorage.setItem('concurso_alepa_campus', campus);
+    } catch {
+      // ignore storage errors
+    }
+  };
+
+  const handleChangeMedioCargo = (group: MedioCargoGroup) => {
+    setSelectedMedioCargo(group);
+    try {
+      localStorage.setItem('concurso_alepa_medio_cargo', group);
+    } catch {
+      // ignore storage errors
+    }
+  };
 
   const todayKey = formatDateKey(new Date());
   const dailyGoal = profile?.dailyGoalMinutes || CONCURSO_PROFILE.dailyGoalMinutes;
@@ -61,7 +99,7 @@ function CampusShell() {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6">
         <div className="text-center space-y-2">
-          <p className="font-display text-xl font-bold text-slate-900">Meu Campus – ALEPA</p>
+          <p className="font-display text-xl font-bold text-slate-900">Concurso ALEPA 2026</p>
           <p className="text-sm text-slate-500">Carregando área de estudos...</p>
         </div>
       </div>
@@ -77,6 +115,7 @@ function CampusShell() {
     { id: 'schedule', label: 'Cronograma' },
     { id: 'simulados', label: 'Simulados' },
     { id: 'revisions', label: 'Revisões' },
+    { id: 'podcasts', label: 'Podcasts' },
     { id: 'materials', label: 'Materiais' },
   ];
 
@@ -85,6 +124,7 @@ function CampusShell() {
     { id: 'disciplines', label: 'Edital', icon: BookOpen },
     { id: 'schedule', label: '2h/dia', icon: CalendarDays },
     { id: 'simulados', label: 'Questões', icon: CheckSquare },
+    { id: 'podcasts', label: 'Podcasts', icon: Headphones },
     { id: 'materials', label: 'Arquivos', icon: FileText },
   ];
 
@@ -103,7 +143,7 @@ function CampusShell() {
             onClick={() => setActiveTab('dashboard')}
             className="font-display text-lg font-bold tracking-tight text-slate-900 whitespace-nowrap shrink-0 text-left"
           >
-            Meu Campus – ALEPA
+            Concurso ALEPA 2026
           </button>
 
           <nav className="hidden md:flex items-center gap-6 text-sm font-medium text-slate-600">
@@ -141,7 +181,7 @@ function CampusShell() {
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 pb-24 md:pb-12 space-y-6">
         {activeTab !== 'dashboard' && (
           <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-slate-600">
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <button
                 type="button"
                 onClick={() => setActiveTab('dashboard')}
@@ -155,21 +195,45 @@ function CampusShell() {
                 {activeTab === 'schedule' && 'Cronograma 2h'}
                 {activeTab === 'simulados' && 'Simulados'}
                 {activeTab === 'revisions' && 'Revisões'}
+                {activeTab === 'podcasts' && 'Podcasts'}
                 {activeTab === 'materials' && 'Materiais'}
                 {activeTab === 'performance' && 'Desempenho'}
               </span>
             </div>
 
-            <button
-              type="button"
-              onClick={() => setActiveTab('performance')}
-              className={`inline-flex items-center gap-1.5 font-medium hover:text-slate-900 ${
-                activeTab === 'performance' ? 'text-[#0B3321] underline' : 'text-slate-600'
-              }`}
-            >
-              <BarChart3 className="w-3.5 h-3.5" />
-              <span>Histórico de desempenho</span>
-            </button>
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="flex items-center gap-1 p-0.5 bg-slate-200/70 rounded-lg">
+                <button
+                  type="button"
+                  onClick={() => handleChangeCampus('superior')}
+                  className={`px-2.5 py-1 text-[11px] font-semibold rounded-md transition-colors ${
+                    selectedCampus === 'superior' ? 'bg-[#0B3321] text-white' : 'text-slate-700 hover:text-slate-900'
+                  }`}
+                >
+                  Nível Superior (PL.AL.102)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleChangeCampus('medio')}
+                  className={`px-2.5 py-1 text-[11px] font-semibold rounded-md transition-colors ${
+                    selectedCampus === 'medio' ? 'bg-[#0B3321] text-white' : 'text-slate-700 hover:text-slate-900'
+                  }`}
+                >
+                  Nível Médio (PL.AL.060)
+                </button>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setActiveTab('performance')}
+                className={`inline-flex items-center gap-1.5 font-medium hover:text-slate-900 ${
+                  activeTab === 'performance' ? 'text-[#0B3321] underline' : 'text-slate-600'
+                }`}
+              >
+                <BarChart3 className="w-3.5 h-3.5" />
+                <span>Histórico de desempenho</span>
+              </button>
+            </div>
           </div>
         )}
 
@@ -181,7 +245,7 @@ function CampusShell() {
             <div className="flex items-start gap-3">
               <Bell className="w-5 h-5 text-[#146C43] shrink-0 mt-0.5" />
               <div>
-                <p className="text-sm font-semibold text-slate-900">Alerta de Estudos · Meu Campus ALEPA</p>
+                <p className="text-sm font-semibold text-slate-900">Alerta de Estudos · Concurso ALEPA 2026</p>
                 <p className="text-xs text-slate-700 mt-0.5">{activeAlertMessage}</p>
               </div>
             </div>
@@ -259,14 +323,26 @@ function CampusShell() {
 
         {activeTab === 'dashboard' && (
           <DashboardView
+            campus={selectedCampus}
+            onChangeCampus={handleChangeCampus}
+            medioCargoGroup={selectedMedioCargo}
+            onChangeMedioCargoGroup={handleChangeMedioCargo}
             onNavigate={setActiveTab}
             onStartFocusTimer={handleStartFocusTimer}
             alertSettings={alertSettings}
           />
         )}
-        {activeTab === 'disciplines' && <DisciplinesView />}
+        {activeTab === 'disciplines' && (
+          <DisciplinesView
+            campus={selectedCampus}
+            onChangeCampus={handleChangeCampus}
+            medioCargoGroup={selectedMedioCargo}
+            onChangeMedioCargoGroup={handleChangeMedioCargo}
+          />
+        )}
         {activeTab === 'schedule' && (
           <ScheduleView
+            campus={selectedCampus}
             initialDisciplineId={timerPreset.disciplineId}
             initialTopicTitle={timerPreset.topicTitle}
             alertSettings={alertSettings}
@@ -276,16 +352,19 @@ function CampusShell() {
             onTestAlert={() => fireStudyAlert(undefined, true)}
           />
         )}
-        {activeTab === 'simulados' && <SimuladosView />}
-        {activeTab === 'revisions' && <ErrorNotebookView />}
-        {activeTab === 'materials' && <MaterialsView />}
-        {activeTab === 'performance' && <PerformanceView />}
+        {activeTab === 'simulados' && (
+          <SimuladosView campus={selectedCampus} medioCargoGroup={selectedMedioCargo} />
+        )}
+        {activeTab === 'revisions' && <ErrorNotebookView campus={selectedCampus} />}
+        {activeTab === 'podcasts' && <PodcastsView campus={selectedCampus} />}
+        {activeTab === 'materials' && <MaterialsView campus={selectedCampus} />}
+        {activeTab === 'performance' && <PerformanceView campus={selectedCampus} />}
       </main>
 
       {/* Mobile Bottom Tab Bar (Thumb Zone, <= 15% viewport cap) */}
       <nav
         aria-label="Navegação mobile"
-        className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-slate-200 grid grid-cols-5 h-16"
+        className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-slate-200 grid grid-cols-6 h-16"
       >
         {mobileTabs.map((tab) => {
           const Icon = tab.icon;

@@ -1,8 +1,11 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import {
+  GoogleAuthProvider,
   User,
   createUserWithEmailAndPassword,
+  linkWithPopup,
   onAuthStateChanged,
+  reauthenticateWithPopup,
   sendEmailVerification,
   signInWithEmailAndPassword,
   signInWithPopup,
@@ -33,12 +36,20 @@ import {
 } from '../lib/firebase';
 import { CONCURSO_PROFILE } from '../data/alepaSyllabus';
 import { CETAP_QUESTIONS, DEFAULT_STUDY_MATERIALS } from '../data/alepaQuestions';
+import { EXTRA_CURATED_QUESTIONS } from '../data/alepaExtraQuestions';
+import { GERAL_DEFAULT_MATERIALS } from '../data/alepaGeneralLibrary';
+import { MEDIO_DEFAULT_MATERIALS, MEDIO_QUESTIONS } from '../data/alepaMedioLibrary';
 import {
   BlockType,
+  DisciplineWeeklyGoal,
   ErrorEntry,
   ErrorReason,
+  LibraryCategoryId,
+  LinkStatus,
   MaterialFileType,
   Question,
+  QuestionOriginType,
+  ResourceType,
   SimuladoAttempt,
   StudyMaterial,
   StudySession,
@@ -53,7 +64,11 @@ interface AuthContextValue {
   authLoading: boolean;
   syncError: string | null;
   clearSyncError: () => void;
+  workspaceAccessToken: string | null;
+  connectGoogleWorkspace: () => Promise<string | null>;
+  clearWorkspaceToken: () => void;
   topicProgressMap: Record<string, TopicProgress>;
+  disciplineGoalsMap: Record<string, DisciplineWeeklyGoal>;
   studySessions: StudySession[];
   simuladoAttempts: SimuladoAttempt[];
   errorNotebook: ErrorEntry[];
@@ -66,6 +81,7 @@ interface AuthContextValue {
   refreshAuthState: () => Promise<void>;
   logout: () => Promise<void>;
   updateProfileSettings: (patch: { displayName?: string; dailyGoalMinutes?: number }) => Promise<void>;
+  saveDisciplineWeeklyGoal: (disciplineId: string, weeklyGoalMinutes: number) => Promise<void>;
   saveTopicProgress: (
     topicId: string,
     disciplineId: string,
@@ -106,8 +122,17 @@ interface AuthContextValue {
   addMaterial: (input: {
     title: string;
     disciplineId: string;
+    libraryCategoryId?: LibraryCategoryId;
+    editalTopic?: string;
+    resourceType?: ResourceType;
     fileType: MaterialFileType;
+    institution?: string;
     url: string;
+    pricing?: 'gratuito' | 'pago';
+    publishedAt?: string;
+    lastVerifiedAt?: string;
+    linkStatus?: LinkStatus;
+    isOfficialContent?: boolean;
     fileName?: string;
     description?: string;
     isShared?: boolean;
@@ -122,6 +147,8 @@ interface AuthContextValue {
     explanation: string;
     legalBasis?: string;
     source?: string;
+    originType?: QuestionOriginType;
+    isOfficial?: boolean;
     isPublished?: boolean;
   }) => Promise<void>;
 }
@@ -146,8 +173,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [syncError, setSyncError] = useState<string | null>(null);
+  // In-memory only (never localStorage/sessionStorage) per Workspace security rules
+  const [workspaceAccessToken, setWorkspaceAccessToken] = useState<string | null>(null);
 
   const [topicProgressMap, setTopicProgressMap] = useState<Record<string, TopicProgress>>({});
+  const [disciplineGoalsMap, setDisciplineGoalsMap] = useState<Record<string, DisciplineWeeklyGoal>>({});
   const [studySessions, setStudySessions] = useState<StudySession[]>([]);
   const [simuladoAttempts, setSimuladoAttempts] = useState<SimuladoAttempt[]>([]);
   const [errorNotebook, setErrorNotebook] = useState<ErrorEntry[]>([]);
@@ -177,8 +207,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const unsub = onAuthStateChanged(auth, async (firebaseUser) => {
       setUser(firebaseUser);
       if (!firebaseUser) {
+        setWorkspaceAccessToken(null);
         setProfile(null);
         setTopicProgressMap({});
+        setDisciplineGoalsMap({});
         setStudySessions([]);
         setSimuladoAttempts([]);
         setErrorNotebook([]);
@@ -265,6 +297,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     unsubs.push(
       onSnapshot(
+        collection(db, 'users', uid, 'disciplineGoals'),
+        (snap) => {
+          const next: Record<string, DisciplineWeeklyGoal> = {};
+          snap.forEach((docSnap) => {
+            next[docSnap.id] = docSnap.data() as DisciplineWeeklyGoal;
+          });
+          setDisciplineGoalsMap(next);
+        },
+        (err) => handleFirestoreError(err, OperationType.LIST, `users/${uid}/disciplineGoals`)
+      )
+    );
+
+    unsubs.push(
+      onSnapshot(
         query(collection(db, 'users', uid, 'studySessions'), orderBy('createdAt', 'desc')),
         (snap) => {
           const list: StudySession[] = snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<StudySession, 'id'>) }));
@@ -346,7 +392,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const materials = React.useMemo(() => {
     const merged = new Map<string, StudyMaterial>();
+    GERAL_DEFAULT_MATERIALS.forEach((m) => merged.set(m.id, m));
     DEFAULT_STUDY_MATERIALS.forEach((m) => merged.set(m.id, m));
+    MEDIO_DEFAULT_MATERIALS.forEach((m) => merged.set(m.id, m));
     sharedMaterials.forEach((m) => merged.set(m.id, m));
     myMaterials.forEach((m) => merged.set(m.id, m));
     return Array.from(merged.values());
@@ -355,6 +403,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const questions = React.useMemo(() => {
     const merged = new Map<string, Question>();
     CETAP_QUESTIONS.forEach((q) => merged.set(q.id, q));
+    MEDIO_QUESTIONS.forEach((q) => merged.set(q.id, q));
+    EXTRA_CURATED_QUESTIONS.forEach((q) => merged.set(q.id, q));
     publishedQuestions.forEach((q) => merged.set(q.id, q));
     myQuestions.forEach((q) => merged.set(q.id, q));
     return Array.from(merged.values());
@@ -376,7 +426,51 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const loginWithGoogle = async () => {
-    await signInWithPopup(auth, googleAuthProvider);
+    const result = await signInWithPopup(auth, googleAuthProvider);
+    const credential = GoogleAuthProvider.credentialFromResult(result);
+    if (credential?.accessToken) {
+      setWorkspaceAccessToken(credential.accessToken);
+    }
+  };
+
+  const connectGoogleWorkspace = async (): Promise<string | null> => {
+    const current = auth.currentUser;
+    const hasGoogleLinked = current?.providerData.some((p) => p.providerId === 'google.com');
+
+    googleAuthProvider.setCustomParameters({ prompt: 'consent select_account' });
+    try {
+      let result;
+      if (current && hasGoogleLinked) {
+        result = await reauthenticateWithPopup(current, googleAuthProvider);
+      } else if (current) {
+        try {
+          result = await linkWithPopup(current, googleAuthProvider);
+        } catch (linkErr: unknown) {
+          const code = (linkErr as { code?: string })?.code || '';
+          if (code === 'auth/credential-already-in-use' || code === 'auth/provider-already-linked') {
+            result = await signInWithPopup(auth, googleAuthProvider);
+          } else {
+            throw linkErr;
+          }
+        }
+      } else {
+        result = await signInWithPopup(auth, googleAuthProvider);
+      }
+
+      const credential = GoogleAuthProvider.credentialFromResult(result);
+      const token = credential?.accessToken || null;
+      if (!token) {
+        throw new Error('Não foi possível obter a autorização da sua conta Google Workspace.');
+      }
+      setWorkspaceAccessToken(token);
+      return token;
+    } finally {
+      googleAuthProvider.setCustomParameters({});
+    }
+  };
+
+  const clearWorkspaceToken = () => {
+    setWorkspaceAccessToken(null);
   };
 
   const resendVerification = async () => {
@@ -414,6 +508,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const logout = async () => {
+    setWorkspaceAccessToken(null);
     await signOut(auth);
   };
 
@@ -431,6 +526,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch (err) {
       setSyncError('Não foi possível atualizar seu perfil agora.');
       handleFirestoreError(err, OperationType.UPDATE, path);
+    }
+  };
+
+  const saveDisciplineWeeklyGoal = async (disciplineId: string, weeklyGoalMinutes: number) => {
+    const current = ensureVerified();
+    const safeDiscId = sanitizeId(disciplineId).slice(0, 80);
+    const clampedMinutes = Math.max(15, Math.min(2520, Math.round(weeklyGoalMinutes)));
+    const existing = disciplineGoalsMap[safeDiscId];
+    const path = `users/${current.uid}/disciplineGoals/${safeDiscId}`;
+    try {
+      const ref = doc(db, 'users', current.uid, 'disciplineGoals', safeDiscId);
+      if (existing) {
+        await updateDoc(ref, {
+          weeklyGoalMinutes: clampedMinutes,
+          updatedAt: serverTimestamp(),
+        });
+      } else {
+        await setDoc(ref, {
+          userId: current.uid,
+          disciplineId: safeDiscId,
+          weeklyGoalMinutes: clampedMinutes,
+          updatedAt: serverTimestamp(),
+        });
+      }
+    } catch (err) {
+      setSyncError('Erro ao salvar meta semanal da disciplina.');
+      handleFirestoreError(err, OperationType.WRITE, path);
     }
   };
 
@@ -626,8 +748,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const addMaterial = async (input: {
     title: string;
     disciplineId: string;
+    libraryCategoryId?: LibraryCategoryId;
+    editalTopic?: string;
+    resourceType?: ResourceType;
     fileType: MaterialFileType;
+    institution?: string;
     url: string;
+    pricing?: 'gratuito' | 'pago';
+    publishedAt?: string;
+    lastVerifiedAt?: string;
+    linkStatus?: LinkStatus;
+    isOfficialContent?: boolean;
     fileName?: string;
     description?: string;
     isShared?: boolean;
@@ -637,8 +768,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const isAdminUser = current.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase();
     const canShare = Boolean(input.isShared && isAdminUser);
     const path = `materials/${materialId}`;
+    const todayIso = addDaysIso(0);
     try {
-      await setDoc(doc(db, 'materials', materialId), {
+      const payload: Record<string, unknown> = {
         ownerId: current.uid,
         title: input.title.trim().slice(0, 200),
         disciplineId: input.disciplineId.slice(0, 80),
@@ -649,7 +781,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         isShared: canShare,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
-      });
+      };
+      if (input.libraryCategoryId) payload.libraryCategoryId = input.libraryCategoryId.slice(0, 80);
+      if (input.editalTopic) payload.editalTopic = input.editalTopic.trim().slice(0, 240);
+      if (input.resourceType) payload.resourceType = input.resourceType;
+      if (input.institution) payload.institution = input.institution.trim().slice(0, 160);
+      if (input.pricing) payload.pricing = input.pricing;
+      payload.publishedAt = (input.publishedAt || todayIso).slice(0, 20);
+      payload.lastVerifiedAt = (input.lastVerifiedAt || todayIso).slice(0, 20);
+      if (input.linkStatus) payload.linkStatus = input.linkStatus;
+      if (input.isOfficialContent !== undefined) payload.isOfficialContent = Boolean(input.isOfficialContent);
+
+      await setDoc(doc(db, 'materials', materialId), payload);
     } catch (err) {
       setSyncError('Erro ao salvar material.');
       handleFirestoreError(err, OperationType.CREATE, path);
@@ -676,6 +819,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     explanation: string;
     legalBasis?: string;
     source?: string;
+    originType?: QuestionOriginType;
+    isOfficial?: boolean;
     isPublished?: boolean;
   }) => {
     const current = ensureVerified();
@@ -683,6 +828,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const isAdminUser = current.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase();
     const canPublish = Boolean(input.isPublished && isAdminUser);
     const path = `sharedQuestions/${questionId}`;
+    const originType: QuestionOriginType = input.originType || 'training_platform';
+    const isOfficial = input.isOfficial ?? originType !== 'training_platform';
     try {
       await setDoc(doc(db, 'sharedQuestions', questionId), {
         authorId: current.uid,
@@ -693,7 +840,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         correctIndex: Math.max(0, Math.min(4, Math.round(input.correctIndex))),
         explanation: input.explanation.trim().slice(0, 2000),
         legalBasis: (input.legalBasis || '').slice(0, 400),
-        source: (input.source || 'Cadastro Meu Campus').slice(0, 160),
+        source: (
+          input.source || (isOfficial ? 'Prova / Fonte Oficial' : 'Treinamento Complementar (Não Oficial)')
+        ).slice(0, 160),
+        originType,
+        isOfficial,
         isPublished: canPublish,
         createdAt: serverTimestamp(),
       });
@@ -711,7 +862,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         authLoading,
         syncError,
         clearSyncError: () => setSyncError(null),
+        workspaceAccessToken,
+        connectGoogleWorkspace,
+        clearWorkspaceToken,
         topicProgressMap,
+        disciplineGoalsMap,
         studySessions,
         simuladoAttempts,
         errorNotebook,
@@ -724,6 +879,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         refreshAuthState,
         logout,
         updateProfileSettings,
+        saveDisciplineWeeklyGoal,
         saveTopicProgress,
         logStudySession,
         saveSimuladoAttempt,

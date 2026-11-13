@@ -110,14 +110,36 @@ service cloud.firestore {
         && data.updatedAt is timestamp;
     }
 
+    function isValidDisciplineGoal(data, userId, disciplineId) {
+      return data.keys().hasAll(['userId', 'disciplineId', 'weeklyGoalMinutes', 'updatedAt'])
+        && data.keys().hasOnly(['userId', 'disciplineId', 'weeklyGoalMinutes', 'updatedAt'])
+        && data.userId is string && data.userId == userId
+        && data.disciplineId is string && data.disciplineId == disciplineId && data.disciplineId.size() >= 1 && data.disciplineId.size() <= 80
+        && data.weeklyGoalMinutes is int && data.weeklyGoalMinutes >= 15 && data.weeklyGoalMinutes <= 2520
+        && data.updatedAt is timestamp;
+    }
+
     function isValidMaterial(data) {
       return data.keys().hasAll(['ownerId', 'title', 'disciplineId', 'fileType', 'url', 'isShared', 'createdAt', 'updatedAt'])
-        && data.keys().hasOnly(['ownerId', 'title', 'disciplineId', 'fileType', 'url', 'fileName', 'description', 'isShared', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly([
+          'ownerId', 'title', 'disciplineId', 'libraryCategoryId', 'editalTopic', 'resourceType',
+          'fileType', 'institution', 'url', 'pricing', 'publishedAt', 'lastVerifiedAt',
+          'linkStatus', 'isOfficialContent', 'fileName', 'description', 'isShared', 'createdAt', 'updatedAt'
+        ])
         && data.ownerId is string && isValidId(data.ownerId)
         && data.title is string && data.title.size() >= 1 && data.title.size() <= 200
         && data.disciplineId is string && data.disciplineId.size() >= 1 && data.disciplineId.size() <= 80
+        && (!data.keys().hasAny(['libraryCategoryId']) || (data.libraryCategoryId is string && data.libraryCategoryId.size() >= 1 && data.libraryCategoryId.size() <= 80))
+        && (!data.keys().hasAny(['editalTopic']) || (data.editalTopic is string && data.editalTopic.size() <= 240))
+        && (!data.keys().hasAny(['resourceType']) || (data.resourceType is string && data.resourceType in ['pdf', 'livro_digital', 'video', 'podcast', 'legislacao', 'curso', 'questoes', 'simulado']))
         && data.fileType is string && data.fileType in ['pdf', 'pptx', 'xlsx', 'drive', 'video']
+        && (!data.keys().hasAny(['institution']) || (data.institution is string && data.institution.size() <= 160))
         && data.url is string && data.url.size() >= 1 && data.url.size() <= 2000
+        && (!data.keys().hasAny(['pricing']) || (data.pricing is string && data.pricing in ['gratuito', 'pago']))
+        && (!data.keys().hasAny(['publishedAt']) || (data.publishedAt is string && data.publishedAt.size() <= 20))
+        && (!data.keys().hasAny(['lastVerifiedAt']) || (data.lastVerifiedAt is string && data.lastVerifiedAt.size() <= 20))
+        && (!data.keys().hasAny(['linkStatus']) || (data.linkStatus is string && data.linkStatus in ['ativo', 'instavel', 'atualizacao']))
+        && (!data.keys().hasAny(['isOfficialContent']) || data.isOfficialContent is bool)
         && (!data.keys().hasAny(['fileName']) || (data.fileName is string && data.fileName.size() <= 240))
         && (!data.keys().hasAny(['description']) || (data.description is string && data.description.size() <= 1000))
         && data.isShared is bool
@@ -127,7 +149,10 @@ service cloud.firestore {
 
     function isValidSharedQuestion(data) {
       return data.keys().hasAll(['authorId', 'disciplineId', 'topicTitle', 'statement', 'options', 'correctIndex', 'explanation', 'isPublished', 'createdAt'])
-        && data.keys().hasOnly(['authorId', 'disciplineId', 'topicTitle', 'statement', 'options', 'correctIndex', 'explanation', 'legalBasis', 'source', 'isPublished', 'createdAt'])
+        && data.keys().hasOnly([
+          'authorId', 'disciplineId', 'topicTitle', 'statement', 'options', 'correctIndex',
+          'explanation', 'legalBasis', 'source', 'originType', 'isOfficial', 'isPublished', 'createdAt'
+        ])
         && data.authorId is string && isValidId(data.authorId)
         && data.disciplineId is string && data.disciplineId.size() >= 1 && data.disciplineId.size() <= 80
         && data.topicTitle is string && data.topicTitle.size() >= 1 && data.topicTitle.size() <= 200
@@ -142,6 +167,8 @@ service cloud.firestore {
         && data.explanation is string && data.explanation.size() >= 1 && data.explanation.size() <= 2000
         && (!data.keys().hasAny(['legalBasis']) || (data.legalBasis is string && data.legalBasis.size() <= 400))
         && (!data.keys().hasAny(['source']) || (data.source is string && data.source.size() <= 160))
+        && (!data.keys().hasAny(['originType']) || (data.originType is string && data.originType in ['official_cetap', 'official_camara', 'official_alepa', 'training_platform']))
+        && (!data.keys().hasAny(['isOfficial']) || data.isOfficial is bool)
         && data.isPublished is bool
         && data.createdAt is timestamp;
     }
@@ -240,6 +267,27 @@ service cloud.firestore {
           );
         allow delete: if isValidId(userId) && isValidId(entryId) && isVerified() && isOwner(userId);
       }
+
+      match /disciplineGoals/{disciplineId} {
+        allow get: if isValidId(userId) && isValidId(disciplineId) && isOwner(userId);
+        allow list: if isOwner(userId);
+        allow create: if isValidId(userId) && isValidId(disciplineId)
+          && isVerified()
+          && isOwner(userId)
+          && exists(/databases/$(database)/documents/users/$(userId))
+          && isValidDisciplineGoal(incoming(), userId, disciplineId)
+          && incoming().updatedAt == request.time;
+        allow update: if isValidId(userId) && isValidId(disciplineId)
+          && isVerified()
+          && isOwner(userId)
+          && exists(/databases/$(database)/documents/users/$(userId))
+          && isValidDisciplineGoal(incoming(), userId, disciplineId)
+          && incoming().userId == existing().userId
+          && incoming().disciplineId == existing().disciplineId
+          && incoming().updatedAt == request.time
+          && incoming().diff(existing()).affectedKeys().hasOnly(['weeklyGoalMinutes', 'updatedAt']);
+        allow delete: if isValidId(userId) && isValidId(disciplineId) && isVerified() && isOwner(userId);
+      }
     }
 
     match /materials/{materialId} {
@@ -260,7 +308,11 @@ service cloud.firestore {
         && incoming().updatedAt == request.time
         && (
           isAdmin() ||
-          (existing().ownerId == request.auth.uid && incoming().isShared == existing().isShared && incoming().diff(existing()).affectedKeys().hasOnly(['title', 'disciplineId', 'fileType', 'url', 'fileName', 'description', 'updatedAt']))
+          (existing().ownerId == request.auth.uid && incoming().isShared == existing().isShared && incoming().diff(existing()).affectedKeys().hasOnly([
+            'title', 'disciplineId', 'libraryCategoryId', 'editalTopic', 'resourceType', 'fileType',
+            'institution', 'url', 'pricing', 'publishedAt', 'lastVerifiedAt', 'linkStatus',
+            'isOfficialContent', 'fileName', 'description', 'updatedAt'
+          ]))
         );
       allow delete: if isValidId(materialId) && isVerified() && (existing().ownerId == request.auth.uid || isAdmin());
     }
@@ -281,7 +333,7 @@ service cloud.firestore {
         && incoming().createdAt == existing().createdAt
         && (
           isAdmin() ||
-          (existing().authorId == request.auth.uid && incoming().isPublished == existing().isPublished && incoming().diff(existing()).affectedKeys().hasOnly(['disciplineId', 'topicTitle', 'statement', 'options', 'correctIndex', 'explanation', 'legalBasis', 'source']))
+          (existing().authorId == request.auth.uid && incoming().isPublished == existing().isPublished && incoming().diff(existing()).affectedKeys().hasOnly(['disciplineId', 'topicTitle', 'statement', 'options', 'correctIndex', 'explanation', 'legalBasis', 'source', 'originType', 'isOfficial']))
         );
       allow delete: if isValidId(questionId) && isVerified() && (existing().authorId == request.auth.uid || isAdmin());
     }

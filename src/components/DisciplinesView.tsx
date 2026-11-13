@@ -1,9 +1,27 @@
 import React, { useState } from 'react';
-import { Check, ChevronDown, ChevronUp, ExternalLink, FileEdit } from 'lucide-react';
+import { Check, ChevronDown, ChevronUp, ExternalLink, FileEdit, GraduationCap, Layers } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import {
+  MEDIO_CARGOS,
+  MEDIO_CONCURSO_PROFILE,
+  getMedioDisciplines,
+} from '../data/alepaMedioSyllabus';
 import { ALEPA_DISCIPLINES, CONCURSO_PROFILE } from '../data/alepaSyllabus';
+import { CampusLevel, MedioCargoGroup } from '../types';
 
-export function DisciplinesView() {
+interface DisciplinesViewProps {
+  campus: CampusLevel;
+  onChangeCampus: (campus: CampusLevel) => void;
+  medioCargoGroup: MedioCargoGroup;
+  onChangeMedioCargoGroup: (group: MedioCargoGroup) => void;
+}
+
+export function DisciplinesView({
+  campus,
+  onChangeCampus,
+  medioCargoGroup,
+  onChangeMedioCargoGroup,
+}: DisciplinesViewProps) {
   const { topicProgressMap, saveTopicProgress } = useAuth();
   const [blockFilter, setBlockFilter] = useState<string>('all');
   const [expandedTopicId, setExpandedTopicId] = useState<string | null>(null);
@@ -20,10 +38,13 @@ export function DisciplinesView() {
     'Noções de Informática',
   ];
 
+  const activeDisciplines =
+    campus === 'medio' ? getMedioDisciplines(medioCargoGroup) : ALEPA_DISCIPLINES;
+
   const filteredDisciplines =
     blockFilter === 'all'
-      ? ALEPA_DISCIPLINES
-      : ALEPA_DISCIPLINES.filter((d) => d.editalBlock === blockFilter);
+      ? activeDisciplines
+      : activeDisciplines.filter((d) => d.editalBlock === blockFilter);
 
   const handleToggle = async (
     topicId: string,
@@ -58,14 +79,14 @@ export function DisciplinesView() {
   };
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
         <div>
           <p className="text-xs font-medium text-emerald-800">
-            Anexo II Oficial · {CONCURSO_PROFILE.board} · {CONCURSO_PROFILE.code}
+            Concurso ALEPA 2026 · {CONCURSO_PROFILE.board} · Conteúdo Programático Oficial (Anexo II)
           </p>
           <h1 className="font-display text-2xl sm:text-3xl font-bold text-slate-900 mt-1">
-            Disciplinas e Checklist do Edital
+            Campus & Conteúdo Programático do Edital
           </h1>
         </div>
 
@@ -74,9 +95,9 @@ export function DisciplinesView() {
             href={CONCURSO_PROFILE.anexoIIPdfPath}
             target="_blank"
             rel="noopener noreferrer"
-            className="min-h-[44px] px-4 py-2 bg-[#0B3321] hover:bg-[#134b32] text-white text-sm font-semibold rounded-xl inline-flex items-center gap-2 whitespace-nowrap"
+            className="min-h-[42px] px-4 py-2 bg-[#0B3321] hover:bg-[#134b32] text-white text-xs sm:text-sm font-semibold rounded-xl inline-flex items-center gap-2 whitespace-nowrap"
           >
-            <span>Anexo II (PDF)</span>
+            <span>Anexo II Superior (PDF)</span>
             <ExternalLink className="w-4 h-4" />
           </a>
 
@@ -84,7 +105,7 @@ export function DisciplinesView() {
             href={CONCURSO_PROFILE.editalUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="min-h-[44px] px-4 py-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-800 text-sm font-medium rounded-xl inline-flex items-center gap-2 whitespace-nowrap"
+            className="min-h-[42px] px-4 py-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-800 text-xs sm:text-sm font-medium rounded-xl inline-flex items-center gap-2 whitespace-nowrap"
           >
             <span>Portal CETAP</span>
             <ExternalLink className="w-4 h-4 text-slate-500" />
@@ -92,11 +113,142 @@ export function DisciplinesView() {
         </div>
       </div>
 
-      {/* Official Prova Structure Summary */}
+      {/* Dois Campus de Escolha: Nível Médio (Edital 001/2026) e Nível Superior (Edital 002/2026) */}
+      <section className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-5 space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <p className="text-xs font-semibold text-slate-700">
+            Escolha o Campus para estudar o conteúdo programático correspondente:
+          </p>
+          <span className="text-xs font-mono text-slate-500">
+            {campus === 'medio' ? MEDIO_CONCURSO_PROFILE.editalNumber : CONCURSO_PROFILE.editalNumber}
+          </span>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <button
+            type="button"
+            onClick={() => {
+              onChangeCampus('medio');
+              setBlockFilter('all');
+            }}
+            className={`text-left p-4 rounded-xl border transition-colors flex items-start gap-3 ${
+              campus === 'medio'
+                ? 'border-[#0B3321] bg-[#0B3321] text-white'
+                : 'border-slate-200 bg-slate-50/70 hover:border-slate-300 text-slate-900'
+            }`}
+          >
+            <Layers
+              className={`w-5 h-5 shrink-0 mt-0.5 ${campus === 'medio' ? 'text-emerald-300' : 'text-[#146C43]'}`}
+            />
+            <div>
+              <p className={`text-xs font-mono ${campus === 'medio' ? 'text-emerald-200' : 'text-emerald-800'}`}>
+                CAMPUS 01 · EDITAL Nº 001/2026
+              </p>
+              <p className="font-display text-base font-bold mt-0.5">Nível Médio (Cargos 01 a 04)</p>
+              <p className={`text-xs mt-1 ${campus === 'medio' ? 'text-emerald-100/85' : 'text-slate-600'}`}>
+                Auxiliar Técnico Legislativo: Plenário, Telefonia, Patrimônio e Assistência Administrativa.
+              </p>
+            </div>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              onChangeCampus('superior');
+              setBlockFilter('all');
+            }}
+            className={`text-left p-4 rounded-xl border transition-colors flex items-start gap-3 ${
+              campus === 'superior'
+                ? 'border-[#0B3321] bg-[#0B3321] text-white'
+                : 'border-slate-200 bg-slate-50/70 hover:border-slate-300 text-slate-900'
+            }`}
+          >
+            <GraduationCap
+              className={`w-5 h-5 shrink-0 mt-0.5 ${campus === 'superior' ? 'text-emerald-300' : 'text-[#146C43]'}`}
+            />
+            <div>
+              <p className={`text-xs font-mono ${campus === 'superior' ? 'text-emerald-200' : 'text-emerald-800'}`}>
+                CAMPUS 02 · EDITAL Nº 002/2026
+              </p>
+              <p className="font-display text-base font-bold mt-0.5">Nível Superior (Cargo 03 · PL.AL.102)</p>
+              <p className={`text-xs mt-1 ${campus === 'superior' ? 'text-emerald-100/85' : 'text-slate-600'}`}>
+                Assessoramento Legislativo – Técnico Legislativo · 50 questões objetivas.
+              </p>
+            </div>
+          </button>
+        </div>
+
+        {/* Nível Médio Cargo Selector + Anexo I Details */}
+        {campus === 'medio' && (
+          <div className="pt-4 border-t border-slate-100 space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div>
+                <h2 className="font-display text-base font-bold text-slate-900">
+                  {MEDIO_CONCURSO_PROFILE.primaryCargoNumber} – {MEDIO_CONCURSO_PROFILE.primaryCargoTitle} ({MEDIO_CONCURSO_PROFILE.primaryCargoCode})
+                </h2>
+                <p className="text-xs text-slate-600">
+                  Escolaridade: {MEDIO_CONCURSO_PROFILE.level} · Remuneração: {MEDIO_CONCURSO_PROFILE.remuneration} ·{' '}
+                  {MEDIO_CONCURSO_PROFILE.workload} · {MEDIO_CONCURSO_PROFILE.retificacaoNote}
+                </p>
+              </div>
+              <a
+                href={MEDIO_CONCURSO_PROFILE.editalUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs font-semibold text-[#0B3321] hover:underline inline-flex items-center gap-1 shrink-0"
+              >
+                <span>Página oficial – CETAP</span>
+                <ExternalLink className="w-3.5 h-3.5" />
+              </a>
+            </div>
+
+            <div className="p-3.5 rounded-xl bg-emerald-50/80 border border-emerald-200 text-xs text-emerald-950 leading-relaxed">
+              {MEDIO_CONCURSO_PROFILE.cargo04SpecificNote}
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {MEDIO_CARGOS.map((cargo) => {
+                const isSelected = medioCargoGroup === cargo.group;
+                return (
+                  <button
+                    key={cargo.code}
+                    type="button"
+                    onClick={() => onChangeMedioCargoGroup(cargo.group)}
+                    className={`text-left p-4 rounded-xl border transition-colors space-y-2 ${
+                      isSelected
+                        ? 'border-[#146C43] bg-emerald-50/70'
+                        : 'border-slate-200 bg-white hover:border-slate-300'
+                    }`}
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+                      <span className="font-mono font-bold text-[#0B3321]">
+                        {cargo.cargoNumber} · {cargo.code}
+                      </span>
+                      <span className="font-semibold text-[#146C43]">{cargo.vacanciesSummary}</span>
+                    </div>
+                    <p className="font-display text-sm font-bold text-slate-900">{cargo.title}</p>
+                    <p className="text-[11px] text-slate-600 leading-relaxed line-clamp-2">
+                      {cargo.activitiesSummary}
+                    </p>
+                    <p className="text-[11px] font-mono text-slate-500">
+                      Remuneração: {cargo.remuneration} · {cargo.vacanciesBreakdown}
+                    </p>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </section>
+
+      {/* Estrutura da Prova Objetiva e Quantidade de Questões (Médio e Superior) */}
       <div className="bg-white border border-slate-200 rounded-2xl p-5 overflow-x-auto">
-        <div className="flex items-center justify-between gap-4 mb-3">
+        <div className="flex flex-wrap items-center justify-between gap-4 mb-3">
           <h2 className="font-display text-base font-bold text-slate-900">
-            Estrutura da Prova Objetiva (50 questões · 10,0 pontos)
+            Quantidade de Questões ·{' '}
+            {campus === 'medio'
+              ? 'Nível Médio · Edital nº 001/2026 (50 questões · 10,0 pontos)'
+              : 'Nível Superior · Edital nº 002/2026 (50 questões · 10,0 pontos)'}
           </h2>
           <span className="text-xs text-slate-500">0,2 ponto por questão · 5 alternativas (A–E)</span>
         </div>
@@ -104,41 +256,54 @@ export function DisciplinesView() {
           <thead>
             <tr className="border-b border-slate-200 text-xs text-slate-500">
               <th className="py-2 pr-4 font-medium">Bloco do Edital</th>
-              <th className="py-2 px-4 font-medium text-right">Questões</th>
+              <th className="py-2 px-4 font-medium text-right">Qtd. de Questões</th>
               <th className="py-2 px-4 font-medium text-right">Pontos</th>
               <th className="py-2 pl-4 font-medium text-right">Desempate</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
             <tr>
-              <td className="py-2.5 pr-4 font-medium text-slate-900">Conhecimentos Específicos</td>
-              <td className="py-2.5 px-4 text-right font-mono tabular-nums">20</td>
+              <td className="py-2.5 pr-4 font-medium text-slate-900">
+                Conhecimentos Específicos
+                {campus === 'medio' && (
+                  <span className="block text-xs font-normal text-slate-500">
+                    Dir. Constitucional, Dir. Administrativo, Técnica Legislativa, Adm. Pública, Secretaria, Arquivologia e Rec. Materiais
+                  </span>
+                )}
+              </td>
+              <td className="py-2.5 px-4 text-right font-mono tabular-nums font-semibold text-slate-900">20</td>
               <td className="py-2.5 px-4 text-right font-mono tabular-nums">4,0</td>
               <td className="py-2.5 pl-4 text-right font-mono tabular-nums text-emerald-800">1º critério</td>
             </tr>
             <tr>
               <td className="py-2.5 pr-4 font-medium text-slate-900">Legislação e Ética no Serviço Público</td>
-              <td className="py-2.5 px-4 text-right font-mono tabular-nums">10</td>
+              <td className="py-2.5 px-4 text-right font-mono tabular-nums font-semibold text-slate-900">10</td>
               <td className="py-2.5 px-4 text-right font-mono tabular-nums">2,0</td>
               <td className="py-2.5 pl-4 text-right font-mono tabular-nums">2º critério</td>
             </tr>
             <tr>
               <td className="py-2.5 pr-4 font-medium text-slate-900">Língua Portuguesa</td>
-              <td className="py-2.5 px-4 text-right font-mono tabular-nums">10</td>
+              <td className="py-2.5 px-4 text-right font-mono tabular-nums font-semibold text-slate-900">10</td>
               <td className="py-2.5 px-4 text-right font-mono tabular-nums">2,0</td>
               <td className="py-2.5 pl-4 text-right font-mono tabular-nums">3º critério</td>
             </tr>
             <tr>
               <td className="py-2.5 pr-4 font-medium text-slate-900">Raciocínio Lógico</td>
-              <td className="py-2.5 px-4 text-right font-mono tabular-nums">05</td>
+              <td className="py-2.5 px-4 text-right font-mono tabular-nums font-semibold text-slate-900">05</td>
               <td className="py-2.5 px-4 text-right font-mono tabular-nums">1,0</td>
               <td className="py-2.5 pl-4 text-right font-mono tabular-nums">4º critério</td>
             </tr>
             <tr>
               <td className="py-2.5 pr-4 font-medium text-slate-900">Noções de Informática</td>
-              <td className="py-2.5 px-4 text-right font-mono tabular-nums">05</td>
+              <td className="py-2.5 px-4 text-right font-mono tabular-nums font-semibold text-slate-900">05</td>
               <td className="py-2.5 px-4 text-right font-mono tabular-nums">1,0</td>
               <td className="py-2.5 pl-4 text-right font-mono tabular-nums">5º critério</td>
+            </tr>
+            <tr className="bg-slate-50/80 font-semibold text-slate-900">
+              <td className="py-2.5 pr-4">Total da Prova Objetiva</td>
+              <td className="py-2.5 px-4 text-right font-mono tabular-nums">50 questões</td>
+              <td className="py-2.5 px-4 text-right font-mono tabular-nums">10,0</td>
+              <td className="py-2.5 pl-4 text-right text-xs text-slate-500 font-normal">Mínimo conforme edital</td>
             </tr>
           </tbody>
         </table>
@@ -186,9 +351,13 @@ export function DisciplinesView() {
                     <span aria-hidden="true">·</span>
                     <span>{disc.editalBlock}</span>
                     <span aria-hidden="true">·</span>
-                    <span className="font-mono tabular-nums">
-                      {disc.examQuestions} questões ({disc.examPoints.toFixed(1)} pts)
+                    <span className="font-mono font-semibold text-[#0B3321]">
+                      {disc.examQuestions} {disc.examQuestions === 1 ? 'questão' : 'questões'}{' '}
+                      {disc.editalBlock === 'Conhecimentos Específicos' ? '(no bloco)' : ''} ·{' '}
+                      {disc.examPoints.toFixed(1).replace('.', ',')} pts
                     </span>
+                    <span aria-hidden="true">·</span>
+                    <span>{campus === 'medio' ? 'Edital 001/2026 (Médio)' : 'Edital 002/2026 (Superior)'}</span>
                   </div>
                   <h3 className="font-display text-xl font-bold text-slate-900 mt-1">{disc.name}</h3>
                 </div>
@@ -274,7 +443,7 @@ export function DisciplinesView() {
                             rows={3}
                             value={noteVal}
                             onChange={(e) => setNoteDrafts((prev) => ({ ...prev, [topic.id]: e.target.value }))}
-                            placeholder="Anote artigos importantes, exceções de banca ou súmulas..."
+                            placeholder="Anote artigos importantes, exceções de banca ou normas técnicas..."
                             className="w-full px-3.5 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#0B3321]"
                           />
                           <div className="flex justify-end">

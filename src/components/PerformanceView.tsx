@@ -1,21 +1,36 @@
 import React from 'react';
 import { BarChart3, Clock, Cloud, CheckCircle2 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { getMedioDisciplines, isMedioDisciplineId } from '../data/alepaMedioSyllabus';
 import { ALEPA_DISCIPLINES, getDisciplineShortName } from '../data/alepaSyllabus';
+import { CampusLevel } from '../types';
 
-export function PerformanceView() {
+export function PerformanceView({ campus }: { campus: CampusLevel }) {
   const { studySessions, simuladoAttempts, topicProgressMap, errorNotebook, user } = useAuth();
 
-  const totalMinutes = studySessions.reduce((acc, s) => acc + s.durationMinutes, 0);
+  const isMedio = campus === 'medio';
+  const activeDisciplines = isMedio ? getMedioDisciplines('cargo_01_04') : ALEPA_DISCIPLINES;
+
+  const campusSessions = studySessions.filter((s) =>
+    isMedio ? isMedioDisciplineId(s.disciplineId) : !isMedioDisciplineId(s.disciplineId)
+  );
+  const campusAttempts = simuladoAttempts.filter((a) =>
+    isMedio ? isMedioDisciplineId(a.primaryDisciplineId) : !isMedioDisciplineId(a.primaryDisciplineId)
+  );
+  const campusErrors = errorNotebook.filter((e) =>
+    isMedio ? isMedioDisciplineId(e.disciplineId) : !isMedioDisciplineId(e.disciplineId)
+  );
+
+  const totalMinutes = campusSessions.reduce((acc, s) => acc + s.durationMinutes, 0);
   const totalHours = (totalMinutes / 60).toFixed(1);
 
   const avgScore =
-    simuladoAttempts.length > 0
-      ? (simuladoAttempts.reduce((acc, a) => acc + a.score, 0) / simuladoAttempts.length).toFixed(1)
+    campusAttempts.length > 0
+      ? (campusAttempts.reduce((acc, a) => acc + a.score, 0) / campusAttempts.length).toFixed(1)
       : '0.0';
 
-  const masteredErrors = errorNotebook.filter((e) => e.status === 'mastered').length;
-  const totalErrors = errorNotebook.length;
+  const masteredErrors = campusErrors.filter((e) => e.status === 'mastered').length;
+  const totalErrors = campusErrors.length;
   const recoveryPct = totalErrors > 0 ? Math.round((masteredErrors / totalErrors) * 100) : 100;
 
   return (
@@ -25,11 +40,12 @@ export function PerformanceView() {
           <p className="text-xs font-medium text-emerald-800 inline-flex items-center gap-1.5">
             <Cloud className="w-3.5 h-3.5" />
             <span>
-              Sincronizado entre dispositivos · {user?.emailVerified ? 'Nuvem ativa' : 'Aguardando verificação de e-mail'}
+              {isMedio ? 'Nível Médio (Cargo 04 · PL.AL.060)' : 'Nível Superior (Cargo 03 · PL.AL.102)'} ·{' '}
+              {user?.emailVerified ? 'Nuvem ativa' : 'Aguardando verificação de e-mail'}
             </span>
           </p>
           <h1 className="font-display text-2xl sm:text-3xl font-bold text-slate-900 mt-1">
-            Histórico de Desempenho
+            Histórico de Desempenho ({isMedio ? 'Nível Médio' : 'Nível Superior'})
           </h1>
         </div>
       </div>
@@ -39,7 +55,7 @@ export function PerformanceView() {
         <div className="bg-white border border-slate-200 rounded-2xl p-5">
           <p className="text-xs text-slate-500">Horas acumuladas</p>
           <p className="font-display text-3xl font-bold text-slate-900 font-mono tabular-nums mt-1">{totalHours}h</p>
-          <p className="text-xs text-slate-500 mt-1 font-mono tabular-nums">{studySessions.length} sessões</p>
+          <p className="text-xs text-slate-500 mt-1 font-mono tabular-nums">{campusSessions.length} sessões</p>
         </div>
 
         <div className="bg-white border border-slate-200 rounded-2xl p-5">
@@ -51,7 +67,7 @@ export function PerformanceView() {
         <div className="bg-white border border-slate-200 rounded-2xl p-5">
           <p className="text-xs text-slate-500">Simulados realizados</p>
           <p className="font-display text-3xl font-bold text-slate-900 font-mono tabular-nums mt-1">
-            {simuladoAttempts.length}
+            {campusAttempts.length}
           </p>
           <p className="text-xs text-slate-500 mt-1">Padrão Fundação CETAP</p>
         </div>
@@ -73,18 +89,18 @@ export function PerformanceView() {
           <div className="flex items-center gap-2">
             <BarChart3 className="w-5 h-5 text-[#0B3321]" />
             <h2 className="font-display text-lg font-bold text-slate-900">
-              Cobertura e Horas por Disciplina (Ordem de Prioridade)
+              Cobertura e Horas por Disciplina · {isMedio ? 'Cargo 04 (11 Disciplinas)' : 'Cargo 03 (Ordem de Prioridade)'}
             </h2>
           </div>
         </div>
 
         <div className="space-y-4">
-          {ALEPA_DISCIPLINES.map((disc) => {
+          {activeDisciplines.map((disc) => {
             const topicLevels = disc.topics.map((t) => topicProgressMap[t.id]?.masteryLevel ?? 0);
             const avgMastery = topicLevels.length
               ? Math.round(topicLevels.reduce((a, b) => a + b, 0) / topicLevels.length)
               : 0;
-            const mins = studySessions
+            const mins = campusSessions
               .filter((s) => s.disciplineId === disc.id)
               .reduce((a, s) => a + s.durationMinutes, 0);
 
@@ -115,13 +131,13 @@ export function PerformanceView() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <section className="bg-white border border-slate-200 rounded-2xl p-6">
           <h2 className="font-display text-lg font-bold text-slate-900 mb-4">Histórico de Simulados</h2>
-          {simuladoAttempts.length === 0 ? (
+          {campusAttempts.length === 0 ? (
             <p className="text-sm text-slate-500 py-6 text-center">
-              Nenhum simulado registrado ainda. Conclua uma bateria na aba Simulados.
+              Nenhum simulado registrado neste campus ainda. Conclua uma bateria na aba Simulados.
             </p>
           ) : (
             <div className="divide-y divide-slate-100">
-              {simuladoAttempts.slice(0, 10).map((att) => (
+              {campusAttempts.slice(0, 10).map((att) => (
                 <div key={att.id} className="py-3 flex items-center justify-between gap-4">
                   <div className="min-w-0">
                     <p className="text-sm font-medium text-slate-900 truncate">{att.title}</p>
@@ -143,13 +159,13 @@ export function PerformanceView() {
 
         <section className="bg-white border border-slate-200 rounded-2xl p-6">
           <h2 className="font-display text-lg font-bold text-slate-900 mb-4">Sessões de Estudo Recentes</h2>
-          {studySessions.length === 0 ? (
+          {campusSessions.length === 0 ? (
             <p className="text-sm text-slate-500 py-6 text-center">
-              Nenhuma sessão registrada ainda. Inicie o cronômetro de 2h no Cronograma.
+              Nenhuma sessão registrada neste campus ainda. Inicie o cronômetro de 2h no Cronograma.
             </p>
           ) : (
             <div className="divide-y divide-slate-100">
-              {studySessions.slice(0, 10).map((ses) => (
+              {campusSessions.slice(0, 10).map((ses) => (
                 <div key={ses.id} className="py-3 flex items-center justify-between gap-4">
                   <div className="min-w-0">
                     <p className="text-sm font-medium text-slate-900 truncate">

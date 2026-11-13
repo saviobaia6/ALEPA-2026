@@ -1,4 +1,5 @@
 import { BlockType, Discipline } from '../types';
+import { ALL_MEDIO_DISCIPLINES } from './alepaMedioSyllabus';
 
 export const CONCURSO_PROFILE = {
   title: 'ALEPA 2026 – Cargo 03',
@@ -740,10 +741,33 @@ export function generateCalendarUntilExam(startDate = new Date(), maxDays = 365)
   return plans;
 }
 
+const GERAL_DISCIPLINE_LABELS: Record<string, string> = {
+  geral_portugues: 'Língua Portuguesa (Geral)',
+  geral_raciocinio_logico: 'Raciocínio Lógico (Geral)',
+  geral_informatica: 'Informática (Geral)',
+  geral_constitucional: 'Direito Constitucional (Base Comum)',
+  geral_administrativo: 'Direito Administrativo (Base Comum)',
+  geral_legislacao_alepa: 'Legislação da ALEPA (Base Comum)',
+  geral_etica: 'Ética no Serviço Público (Base Comum)',
+  geral_tecnica_legislativa: 'Técnica Legislativa (Base Comum)',
+};
+
 export function getDisciplineName(disciplineId: string): string {
-  return ALEPA_DISCIPLINES.find((d) => d.id === disciplineId)?.name ?? disciplineId;
+  if (disciplineId === 'nm_geral') return 'Geral · Nível Médio (Cargo 04)';
+  if (GERAL_DISCIPLINE_LABELS[disciplineId]) return GERAL_DISCIPLINE_LABELS[disciplineId];
+  return (
+    ALEPA_DISCIPLINES.find((d) => d.id === disciplineId)?.name ??
+    ALL_MEDIO_DISCIPLINES.find((d) => d.id === disciplineId)?.name ??
+    disciplineId
+  );
 }
 
 export function getDisciplineShortName(disciplineId: string): string {
-  return ALEPA_DISCIPLINES.find((d) => d.id === disciplineId)?.shortName ?? disciplineId;
+  if (disciplineId === 'nm_geral') return 'Geral (Médio)';
+  if (GERAL_DISCIPLINE_LABELS[disciplineId]) return GERAL_DISCIPLINE_LABELS[disciplineId];
+  return (
+    ALEPA_DISCIPLINES.find((d) => d.id === disciplineId)?.shortName ??
+    ALL_MEDIO_DISCIPLINES.find((d) => d.id === disciplineId)?.shortName ??
+    disciplineId
+  );
 }

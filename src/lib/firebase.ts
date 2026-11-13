@@ -4,9 +4,24 @@ import { doc, getDocFromServer, getFirestore } from 'firebase/firestore';
 import firebaseConfig from '../../firebase-applet-config.json';
 
 const app = initializeApp(firebaseConfig);
-export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
+const firestoreDatabaseId =
+  (firebaseConfig as { firestoreDatabaseId?: string }).firestoreDatabaseId ||
+  'ai-studio-alepaconcurso202-73ea510c-8cb0-4e96-8e4c-98ff64c1a3c9';
+export const db = getFirestore(app, firestoreDatabaseId);
 export const auth = getAuth(app);
 export const googleAuthProvider = new GoogleAuthProvider();
+
+export const WORKSPACE_SCOPES = [
+  'https://www.googleapis.com/auth/drive.readonly',
+  'https://www.googleapis.com/auth/spreadsheets.readonly',
+  'https://www.googleapis.com/auth/presentations.readonly',
+  'https://www.googleapis.com/auth/calendar.events',
+  'https://www.googleapis.com/auth/gmail.send',
+] as const;
+
+WORKSPACE_SCOPES.forEach((scope) => {
+  googleAuthProvider.addScope(scope);
+});
 
 export const ADMIN_EMAIL = 'SavioBaia6@gmail.com';
 
